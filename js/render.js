@@ -182,7 +182,9 @@ function updateButtons(isBotTurn) {
     panel.classList.toggle('turn-active', isCurrent && !state.over);
     panel.classList.toggle('turn-inactive', !canControl);
     panel.querySelectorAll('.action-button').forEach(button => {
-      button.disabled = !canControl;
+      const firstTurnAttackLocked = button.dataset.action === 'attack' && state.turn === 1;
+      button.disabled = !canControl || firstTurnAttackLocked;
+      button.title = firstTurnAttackLocked ? '첫 턴에는 공격할 수 없습니다' : '';
       button.classList.toggle('active', isCurrent &&
         ((button.dataset.action === 'move' && state.phase === 'move') ||
          (button.dataset.action === 'attack' && state.phase === 'attack')));

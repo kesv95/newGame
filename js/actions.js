@@ -1,7 +1,4 @@
 function endTurn() {
-  // 방어 플래그 해제
-  state.players[state.current].defended = false;
-
   // 쿨다운 감소 (현재 턴 플레이어 기준)
   const me = state.players[state.current];
   me.mp = Math.min(me.maxMp, me.mp + 1);
@@ -10,6 +7,9 @@ function endTurn() {
   });
 
   state.current = otherPlayer(state.current);
+  // 새 턴 시작 시 만료된 방어 상태와 방어 제한을 초기화한다.
+  state.players[state.current].defended = false;
+  state.players[state.current].lastDefended = false;
   state.phase = 'select';
   state.selectedSkillId = null;
   state.hoverSkillId = null;

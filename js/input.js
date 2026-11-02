@@ -95,7 +95,8 @@ function bindInputEvents() {
           return;
         }
         state.phase = 'attack';
-        state.selectedSkillId = null;
+        // 공격 단계 진입 시 무료 기본 공격을 기본 선택해 즉시 공격 가능하게 한다.
+        state.selectedSkillId = 'basic';
         state.hoverSkillId = null;
         render();
         return;
