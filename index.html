@@ -1,0 +1,75 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>5x5 턴제 전술 대전 · ver_1.1</title>
+  <link rel="stylesheet" href="css/style.css">
+</head>
+<body>
+
+  <!-- 시작 화면 -->
+  <div id="startScreen">
+    <h2>5 × 5 턴제 전술 대전 <small>ver_1.1</small></h2>
+    <p>한 턴에 이동 / 공격 / 방어 중 하나만 선택하세요</p>
+
+    <div class="char-select">
+      <div>
+        <label>플레이어 1</label>
+        <select id="p1Char"></select>
+      </div>
+      <div id="p2CharBox">
+        <label>플레이어 2</label>
+        <select id="p2Char"></select>
+      </div>
+    </div>
+
+    <button class="mode-btn" id="btnSingle">1인 플레이<small>봇과 대전합니다 (봇 캐릭터는 랜덤)</small></button>
+    <button class="mode-btn" id="btnDouble">2인 플레이<small>한 화면에서 번갈아 조작합니다</small></button>
+  </div>
+
+  <!-- 게임 화면 -->
+  <div id="gameScreen" class="hidden">
+    <h1>5 × 5 턴제 전술 대전</h1>
+    <div id="status">플레이어 1의 턴 — 행동을 선택하세요</div>
+
+    <div id="board"></div>
+
+    <div id="hpbar">
+      <div class="hp" id="hp1">
+        <span class="name">P1</span>
+        <div class="resources">
+          <div class="resource hp-resource"><span class="resource-label">HP</span><div class="bar"><div class="fill hp-fill" style="width:100%"></div></div><span class="num hp-num">10</span></div>
+          <div class="resource mp-resource"><span class="resource-label">MP</span><div class="bar"><div class="fill mp-fill" style="width:100%"></div></div><span class="num mp-num">0</span></div>
+        </div>
+      </div>
+      <div class="hp" id="hp2">
+        <span class="name">P2</span>
+        <div class="resources">
+          <div class="resource hp-resource"><span class="resource-label">HP</span><div class="bar"><div class="fill hp-fill" style="width:100%"></div></div><span class="num hp-num">10</span></div>
+          <div class="resource mp-resource"><span class="resource-label">MP</span><div class="bar"><div class="fill mp-fill" style="width:100%"></div></div><span class="num mp-num">0</span></div>
+        </div>
+      </div>
+    </div>
+
+    <div id="panel">
+      <button id="btnMove" disabled>이동</button>
+      <button id="btnAttack" disabled>공격</button>
+      <button id="btnDefend" disabled>방어</button>
+    </div>
+
+    <div id="log"></div>
+    <button id="restart">새 게임</button>
+  </div>
+
+  <!-- 스크립트: 의존성 순서대로 로드 -->
+  <script src="js/config.js"></script>
+  <script src="js/state.js"></script>
+  <script src="js/utils.js"></script>
+  <script src="js/render.js"></script>
+  <script src="js/actions.js"></script>
+  <script src="js/bot.js"></script>
+  <script src="js/input.js"></script>
+  <script src="js/main.js"></script>
+</body>
+</html>
