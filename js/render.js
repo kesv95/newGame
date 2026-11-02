@@ -1,11 +1,11 @@
 const boardEl = document.getElementById('board');
 const statusEl = document.getElementById('status');
 const logEl = document.getElementById('log');
-const btnMove = document.getElementById('btnMove');
-const btnAttack = document.getElementById('btnAttack');
-const btnDefend = document.getElementById('btnDefend');
 const startScreen = document.getElementById('startScreen');
 const gameScreen = document.getElementById('gameScreen');
+const resultOverlay = document.getElementById('resultOverlay');
+const resultMessage = document.getElementById('resultMessage');
+const resultTitle = document.getElementById('resultTitle');
 
 const cells = [];
 
@@ -149,6 +149,14 @@ function render() {
   updateHP('p1');
   updateHP('p2');
   updateButtons(isBotTurn);
+  resultOverlay.classList.toggle('hidden', !state.over);
+  if (state.over) {
+    const { p1, p2 } = state.players;
+    const isDraw = p1.hp === p2.hp;
+    resultTitle.textContent = isDraw ? '무승부!' :
+      (p1.hp > p2.hp ? 'P1 승리!' : (state.mode === 'single' ? '봇 승리!' : 'P2 승리!'));
+    resultMessage.textContent = state.resultText;
+  }
   renderSkillPanel(isBotTurn);
   updateStatus(isBotTurn);
 }
@@ -164,12 +172,22 @@ function updateHP(pid) {
 }
 
 function updateButtons(isBotTurn) {
-  const myTurn = !state.over && !isBotTurn && !state.botThinking && !state.animating;
-  btnMove.disabled = !myTurn;
-  btnAttack.disabled = !myTurn;
-  btnDefend.disabled = !myTurn;
-  btnMove.classList.toggle('active', state.phase === 'move');
-  btnAttack.classList.toggle('active', state.phase === 'attack');
+  document.querySelectorAll('.action-panel').forEach(panel => {
+    const pid = panel.dataset.player;
+    panel.querySelector('.action-owner').textContent =
+      state.mode === 'single' && pid === 'p2' ? '봇 행동' : `${pid.toUpperCase()} 행동`;
+    const isCurrent = state.current === pid;
+    const canControl = !state.over && !state.botThinking && !state.animating &&
+      (state.mode === 'double' ? isCurrent : pid === 'p1' && isCurrent && !isBotTurn);
+    panel.classList.toggle('turn-active', isCurrent && !state.over);
+    panel.classList.toggle('turn-inactive', !canControl);
+    panel.querySelectorAll('.action-button').forEach(button => {
+      button.disabled = !canControl;
+      button.classList.toggle('active', isCurrent &&
+        ((button.dataset.action === 'move' && state.phase === 'move') ||
+         (button.dataset.action === 'attack' && state.phase === 'attack')));
+    });
+  });
 }
 
 /* 스킬 선택 패널 */

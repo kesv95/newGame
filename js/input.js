@@ -74,51 +74,51 @@ function onCellClick(r, c) {
 }
 
 function bindInputEvents() {
-  // 이동 버튼
-  btnMove.addEventListener('click', () => {
-    if (state.over || state.botThinking || state.animating) return;
-    state.phase = 'move';
-    state.selectedSkillId = null;
-    state.hoverSkillId = null;
-    render();
-  });
+  document.querySelectorAll('.action-button').forEach(button => {
+    button.addEventListener('click', () => {
+      const pid = button.dataset.player;
+      const action = button.dataset.action;
+      if (state.over || state.botThinking || state.animating || pid !== state.current) return;
+      if (state.mode === 'single' && pid === 'p2') return;
 
-  // 공격 버튼
-  btnAttack.addEventListener('click', () => {
-    if (state.over || state.botThinking || state.animating) return;
-    if (state.turn === 1) {
-      log('⚠️ 첫 턴에는 공격할 수 없습니다 (선공 보정)');
-      return;
-    }
-    state.phase = 'attack';
-    state.selectedSkillId = null;
-    state.hoverSkillId = null;
-    render();
-  });
+      if (action === 'move') {
+        state.phase = 'move';
+        state.selectedSkillId = null;
+        state.hoverSkillId = null;
+        render();
+        return;
+      }
 
-  // 방어 버튼
-  btnDefend.addEventListener('click', () => {
-    if (state.over || state.botThinking || state.animating) return;
-    const me = state.players[state.current];
-    if (me.lastDefended) {
-      log('⚠️ 연속 방어는 불가합니다');
-      return;
-    }
+      if (action === 'attack') {
+        if (state.turn === 1) {
+          log('⚠️ 첫 턴에는 공격할 수 없습니다 (선공 보정)');
+          return;
+        }
+        state.phase = 'attack';
+        state.selectedSkillId = null;
+        state.hoverSkillId = null;
+        render();
+        return;
+      }
 
-    // [추가] 방어 상태 저장
-    me.defended = true;
-    me.lastDefended = true;
-    me.isDefending = true; // 렌더링 파트에서 방어 모션을 그리기 위함
-    state.animating = true;
-
-    log(`🛡️ ${playerFullLabel(state.current)} 방어`);
-    render();
-
-    // [추가] 방어 모션 시간(약 400ms) 후 턴 종료
-    setTimeout(() => {
-      me.isDefending = false;
-      state.animating = false;
-      endTurn();
-    }, 400);
+      if (action === 'defend') {
+        const me = state.players[pid];
+        if (me.lastDefended) {
+          log('⚠️ 연속 방어는 불가합니다');
+          return;
+        }
+        me.defended = true;
+        me.lastDefended = true;
+        me.isDefending = true;
+        state.animating = true;
+        log(`🛡️ ${playerFullLabel(pid)} 방어`);
+        render();
+        setTimeout(() => {
+          me.isDefending = false;
+          state.animating = false;
+          endTurn();
+        }, 400);
+      }
+    });
   });
 }

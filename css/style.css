@@ -105,8 +105,65 @@ h1 { font-size: 20px; margin: 12px 0 4px; letter-spacing: 1px; }
 #panel {
   margin-top: 4px;
   display: flex;
-  gap: 10px;
+  flex-wrap: wrap;
+  gap: 12px;
+  justify-content: center;
+  align-items: stretch;
+}
+
+.action-panel {
+  display: flex;
   align-items: center;
+  gap: 7px;
+  padding: 8px 10px;
+  border: 2px solid transparent;
+  border-radius: 10px;
+  transition: opacity 0.15s, border-color 0.15s, background 0.15s;
+}
+
+#p1Actions { background: rgba(33, 150, 243, 0.16); border-color: rgba(33, 150, 243, 0.38); }
+#p2Actions { background: rgba(233, 30, 99, 0.16); border-color: rgba(233, 30, 99, 0.38); }
+.action-panel.turn-active { box-shadow: 0 0 14px rgba(255, 211, 105, 0.2); }
+.action-panel.turn-inactive { filter: grayscale(0.8); opacity: 0.48; }
+.action-owner { min-width: 66px; font-size: 12px; color: #d6d6df; }
+.action-panel.turn-inactive .action-button:disabled { background: #555963; color: #aaa; opacity: 1; }
+.action-panel.turn-active .action-button:not(:disabled) { box-shadow: 0 0 0 1px rgba(255,255,255,0.12) inset; }
+
+#resultOverlay {
+  position: fixed;
+  inset: 0;
+  z-index: 150;
+  display: grid;
+  place-items: center;
+  padding: 24px;
+  background: rgba(5, 7, 16, 0.78);
+  backdrop-filter: blur(5px);
+}
+
+.result-card {
+  width: min(520px, 92vw);
+  padding: 38px 32px 30px;
+  text-align: center;
+  border: 2px solid rgba(255, 211, 105, 0.7);
+  border-radius: 20px;
+  background: linear-gradient(145deg, #26233f, #111827);
+  box-shadow: 0 22px 80px rgba(0, 0, 0, 0.65), 0 0 32px rgba(255, 211, 105, 0.18);
+  animation: resultAppear 0.35s ease-out;
+}
+
+.result-mark { color: #ffd369; font-size: 36px; }
+.result-card h2 { margin: 8px 0 12px; color: #ffd369; font-size: clamp(34px, 8vw, 56px); }
+.result-card p { margin: 0 0 22px; color: #e2e4ed; font-size: 16px; line-height: 1.6; }
+.result-card button { min-width: 140px; background: #7953c5; }
+
+@keyframes resultAppear {
+  from { opacity: 0; transform: translateY(10px) scale(0.96); }
+  to { opacity: 1; transform: translateY(0) scale(1); }
+}
+
+@media (max-width: 620px) {
+  #panel { width: min(96vw, 430px); }
+  .action-panel { flex: 1 1 100%; justify-content: center; }
 }
 
 button {

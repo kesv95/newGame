@@ -53,13 +53,31 @@
     </div>
 
     <div id="panel">
-      <button id="btnMove" disabled>이동</button>
-      <button id="btnAttack" disabled>공격</button>
-      <button id="btnDefend" disabled>방어</button>
+      <div class="action-panel" id="p1Actions" data-player="p1">
+        <strong class="action-owner">P1 행동</strong>
+        <button class="action-button" data-player="p1" data-action="move" disabled>이동</button>
+        <button class="action-button" data-player="p1" data-action="attack" disabled>공격</button>
+        <button class="action-button" data-player="p1" data-action="defend" disabled>방어</button>
+      </div>
+      <div class="action-panel" id="p2Actions" data-player="p2">
+        <strong class="action-owner">P2 행동</strong>
+        <button class="action-button" data-player="p2" data-action="move" disabled>이동</button>
+        <button class="action-button" data-player="p2" data-action="attack" disabled>공격</button>
+        <button class="action-button" data-player="p2" data-action="defend" disabled>방어</button>
+      </div>
     </div>
 
     <div id="log"></div>
     <button id="restart">새 게임</button>
+  </div>
+
+  <div id="resultOverlay" class="hidden" role="dialog" aria-modal="true" aria-labelledby="resultTitle">
+    <div class="result-card">
+      <div class="result-mark">✦</div>
+      <h2 id="resultTitle">게임 종료</h2>
+      <p id="resultMessage"></p>
+      <button id="resultRestart">새 게임</button>
+    </div>
   </div>
 
   <!-- 스크립트: 의존성 순서대로 로드 -->

@@ -49,6 +49,7 @@ function startGame(mode) {
 }
 
 function returnToStart() {
+  document.getElementById('resultOverlay').classList.add('hidden');
   startScreen.classList.remove('hidden');
   gameScreen.classList.add('hidden');
 }
@@ -96,6 +97,7 @@ function bindGlobalEvents() {
   });
 
   document.getElementById('restart').addEventListener('click', returnToStart);
+  document.getElementById('resultRestart').addEventListener('click', returnToStart);
 }
 
 /* ============================================================
