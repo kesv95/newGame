@@ -241,6 +241,8 @@ function renderSkillPanel(isBotTurn) {
         <span class="skill-name">${skill.name}</span>
         <span class="skill-meta">데미지 ${skill.damage} · MP ${skill.mpCost} · CD ${skill.cd}</span>
         <span class="skill-desc">${skill.desc}</span>
+        ${skill.ignoreDefense ? '<span class="skill-cd">방어 무시</span>' : ''}
+        ${skill.stunTurns ? `<span class="skill-cd">기절 ${skill.stunTurns}턴</span>` : ''}
         ${cdLeft > 0 ? `<span class="skill-cd">쿨다운 ${cdLeft}턴</span>` : ''}
         ${player.mp < skill.mpCost ? `<span class="skill-cd">MP 부족</span>` : ''}
       </button>

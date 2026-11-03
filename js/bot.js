@@ -22,9 +22,11 @@ function botAct() {
     const hittable = usableSkills.filter(s => s.canAttack(me.pos, opp.pos));
 
     if (hittable.length > 0) {
-      // 데미지가 가장 높은 스킬 선택 (동률이면 쿨다운 긴 것 = 궁극기 우선)
+      // 효과가 있는 기술을 우선 고려하고, 동률이면 쿨다운이 긴 기술을 사용한다.
+      const skillValue = skill => skill.damage +
+        (skill.stunTurns ? 3 : 0) + (skill.ignoreDefense ? 2 : 0);
       hittable.sort((a, b) => {
-        if (b.damage !== a.damage) return b.damage - a.damage;
+        if (skillValue(b) !== skillValue(a)) return skillValue(b) - skillValue(a);
         return b.cd - a.cd;
       });
       const chosen = hittable[0];

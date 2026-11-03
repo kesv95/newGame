@@ -16,6 +16,19 @@ function endTurn() {
   state.turn++;
 
   if (state.turn > CONFIG.MAX_TURN) { finishByHP(); return; }
+
+  const nextPlayer = state.players[state.current];
+  if (nextPlayer.stunTurns > 0) {
+    nextPlayer.stunTurns--;
+    log(`💫 ${playerFullLabel(state.current)} 기절로 턴을 건너뜁니다`);
+    state.current = otherPlayer(state.current);
+    const resumedPlayer = state.players[state.current];
+    resumedPlayer.defended = false;
+    resumedPlayer.lastDefended = false;
+    state.turn++;
+    if (state.turn > CONFIG.MAX_TURN) { finishByHP(); return; }
+  }
+
   render();
 
   if (state.mode === 'single' && state.current === 'p2' && !state.over) {
@@ -36,15 +49,20 @@ function applyAttack(attackerId, defenderId, defender, skillId) {
   }
   attacker.mp -= skill.mpCost;
 
+  const wasDefended = defender.defended;
+  const defenseBlocked = wasDefended && !skill.ignoreDefense;
   let rawDamage = skill.damage;
-  if (defender.defended) {
+  if (defenseBlocked) {
     const reduction = defChar.defendReduction ?? CONFIG.DEFEND_REDUCTION;
     rawDamage = Math.max(1, Math.round(rawDamage * reduction));
   }
 
-  const armorReduction = Math.min(defChar.armor ?? 0, Math.max(0, rawDamage - 1));
+  const armorReduction = skill.ignoreDefense ? 0 :
+    Math.min(defChar.armor ?? 0, Math.max(0, rawDamage - 1));
   const dmg = Math.max(1, rawDamage - armorReduction);
   defender.hp -= dmg;
+  const stunApplied = skill.stunTurns > 0 && defender.hp > 0 && !defenseBlocked;
+  if (stunApplied) defender.stunTurns = Math.max(defender.stunTurns, skill.stunTurns);
   faceToward(attacker, defender.pos);
   faceToward(defender, attacker.pos);
   setMotion(attacker, 'attack');
@@ -54,7 +72,7 @@ function applyAttack(attackerId, defenderId, defender, skillId) {
   // 쿨다운 설정
   state.players[attackerId].cooldowns[skillId] = skill.cd;
 
-  log(`⚔️ ${playerFullLabel(attackerId)} 「${skill.name}」! ${playerFullLabel(defenderId)} HP -${dmg}${defender.defended ? ' (방어)' : ''}${armorReduction ? ` (방어력 -${armorReduction})` : ''}`);
+  log(`⚔️ ${playerFullLabel(attackerId)} 「${skill.name}」! ${playerFullLabel(defenderId)} HP -${dmg}${defenseBlocked ? ' (방어)' : ''}${wasDefended && skill.ignoreDefense ? ' (방어 무시)' : ''}${armorReduction ? ` (방어력 -${armorReduction})` : ''}${skill.stunTurns && defenseBlocked ? ' (방어로 기절 저항)' : ''}${stunApplied ? ` (기절 ${skill.stunTurns}턴)` : ''}`);
 
   render();
   const unitEl = boardEl.querySelector(`.unit[data-player="${defenderId}"]`);
