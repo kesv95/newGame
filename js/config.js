@@ -159,13 +159,13 @@ const CHARACTERS = {
   wisp: {
     id: 'wisp', name: '위습', symbol: '✦', color: '#4caf50',
     role: '기동 암살자',
-    hp: 10, maxMp: 10,
+    hp: 9, maxMp: 10,
     armor: 1,
     moveDirs: MOVE_DIRS.all,
     skills: [
       makeSkill({ id: 'jab',     name: '찌르기',   desc: '나이트 1회, 데미지 3',         damage: 3, cd: 0, pattern: PATTERNS.knight,   range: 1 }),
-      makeSkill({ id: 'blink',   name: '점멸',     desc: '대각선 2칸, 데미지 3',         damage: 3, cd: 1, pattern: PATTERNS.diagonal, range: 2 }),
-      makeSkill({ id: 'ambush',  name: '기습',     desc: '나이트, 데미지 4 · 1턴 기절', damage: 4, cd: 2, mpCost: 7, stunTurns: 1, pattern: PATTERNS.knight, range: 1 }),
+      makeSkill({ id: 'blink',   name: '그림자 추격', desc: '직선·대각선 4칸 돌진, 데미지 2 · 2턴 출혈', damage: 2, cd: 2, mpCost: 5, dashBehind: true, bleedTurns: 2, bleedDamage: 1, pattern: PATTERNS.lineDiagonal, range: 4 }),
+      makeSkill({ id: 'ambush',  name: '기습',     desc: '나이트, 데미지 5',             damage: 5, cd: 2, pattern: PATTERNS.knight, range: 1 }),
       makeSkill({ id: 'shadow',  name: '그림자 습격', desc: '전방위 1칸, 데미지 6 (궁극기)', damage: 6, cd: 3, pattern: PATTERNS.adjacent8, range: 1 })
     ]
   },
@@ -191,12 +191,12 @@ const CHARACTERS = {
   reaver: {
     id: 'reaver', name: '리버', symbol: '✖', color: '#ff9800',
     role: '포위형',
-    hp: 11, maxMp: 8,
+    hp: 13, maxMp: 8,
     armor: 1,
     moveDirs: MOVE_DIRS.all,
     skills: [
-      makeSkill({ id: 'claw',    name: '할퀴기',   desc: '인접 8칸, 데미지 3',           damage: 3, cd: 0, pattern: PATTERNS.adjacent8, range: 1 }),
-      makeSkill({ id: 'reap',    name: '추격 난무', desc: '직선·대각선 4칸 돌진, 데미지 2 · 2턴 출혈', damage: 2, cd: 2, mpCost: 5, dashBehind: true, bleedTurns: 2, bleedDamage: 1, pattern: PATTERNS.lineDiagonal, range: 4 }),
+      makeSkill({ id: 'claw',    name: '할퀴기',   desc: '인접 8칸, 방어 무시 데미지 3', damage: 3, cd: 0, mpCost: 5, ignoreDefense: true, pattern: PATTERNS.adjacent8, range: 1 }),
+      makeSkill({ id: 'reap',    name: '수확',     desc: '대각선 3칸, 데미지 4',         damage: 4, cd: 1, pattern: PATTERNS.diagonal, range: 3 }),
       makeSkill({ id: 'whirl',   name: '회전 베기', desc: '전방위 2칸, 데미지 3',        damage: 3, cd: 2, pattern: PATTERNS.star,     range: 2 }),
       makeSkill({ id: 'carnage', name: '학살',     desc: '인접 8칸, 데미지 6 (궁극기)',  damage: 6, cd: 4, pattern: PATTERNS.adjacent8, range: 1 })
     ]
