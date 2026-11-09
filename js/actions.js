@@ -7,9 +7,8 @@ function endTurn() {
   });
 
   state.current = otherPlayer(state.current);
-  // 새 턴 시작 시 만료된 방어 상태와 방어 제한을 초기화한다.
+  // 새 턴이 시작되면 직전 방어 효과를 만료시킨다.
   state.players[state.current].defended = false;
-  state.players[state.current].lastDefended = false;
   state.phase = 'select';
   state.selectedSkillId = null;
   state.hoverSkillId = null;
@@ -18,13 +17,24 @@ function endTurn() {
   if (state.turn > CONFIG.MAX_TURN) { finishByHP(); return; }
 
   const nextPlayer = state.players[state.current];
+  if (nextPlayer.bleedTurns > 0) {
+    const bleedDamage = nextPlayer.bleedDamage;
+    nextPlayer.hp = Math.max(0, nextPlayer.hp - bleedDamage);
+    nextPlayer.bleedTurns--;
+    log(`🩸 ${playerFullLabel(state.current)} 출혈 피해 HP -${bleedDamage} (남은 ${nextPlayer.bleedTurns}턴)`);
+    setMotion(nextPlayer, nextPlayer.hp <= 0 ? 'death' : 'hurt');
+    if (nextPlayer.hp <= 0) {
+      finish(checkWin());
+      return;
+    }
+  }
+
   if (nextPlayer.stunTurns > 0) {
     nextPlayer.stunTurns--;
     log(`💫 ${playerFullLabel(state.current)} 기절로 턴을 건너뜁니다`);
     state.current = otherPlayer(state.current);
     const resumedPlayer = state.players[state.current];
     resumedPlayer.defended = false;
-    resumedPlayer.lastDefended = false;
     state.turn++;
     if (state.turn > CONFIG.MAX_TURN) { finishByHP(); return; }
   }
@@ -34,6 +44,35 @@ function endTurn() {
   if (state.mode === 'single' && state.current === 'p2' && !state.over) {
     scheduleBotTurn();
   }
+}
+
+function findBehindLandingTile(attackerId, attacker, defender) {
+  const stepR = Math.sign(defender.pos.r - attacker.pos.r);
+  const stepC = Math.sign(defender.pos.c - attacker.pos.c);
+  const ideal = { r: defender.pos.r + stepR, c: defender.pos.c + stepC };
+  const isAvailable = tile => tile.r >= 0 && tile.r < CONFIG.SIZE &&
+    tile.c >= 0 && tile.c < CONFIG.SIZE &&
+    !Object.entries(state.players).some(([pid, player]) =>
+      pid !== attackerId && player.pos.r === tile.r && player.pos.c === tile.c);
+  if (isAvailable(ideal)) return ideal;
+
+  const attackerVector = {
+    r: attacker.pos.r - defender.pos.r,
+    c: attacker.pos.c - defender.pos.c
+  };
+  const candidates = [];
+  for (let dr = -1; dr <= 1; dr++) {
+    for (let dc = -1; dc <= 1; dc++) {
+      if (dr === 0 && dc === 0) continue;
+      const tile = { r: defender.pos.r + dr, c: defender.pos.c + dc };
+      if (tile.r === attacker.pos.r && tile.c === attacker.pos.c) continue;
+      if (!isAvailable(tile)) continue;
+      const behind = dr * attackerVector.r + dc * attackerVector.c < 0;
+      candidates.push({ tile, behind, idealDistance: Math.abs(tile.r - ideal.r) + Math.abs(tile.c - ideal.c) });
+    }
+  }
+  candidates.sort((a, b) => Number(b.behind) - Number(a.behind) || a.idealDistance - b.idealDistance);
+  return candidates[0]?.tile ?? null;
 }
 
 function applyAttack(attackerId, defenderId, defender, skillId) {
@@ -47,7 +86,15 @@ function applyAttack(attackerId, defenderId, defender, skillId) {
     render();
     return;
   }
+  const dashLanding = skill.dashBehind ? findBehindLandingTile(attackerId, attacker, defender) : null;
+  if (skill.dashBehind && !dashLanding) {
+    log('⚠️ 상대 뒤쪽에 이동할 수 있는 칸이 없습니다');
+    render();
+    return;
+  }
   attacker.mp -= skill.mpCost;
+  attacker.lastDefended = false;
+  if (dashLanding) attacker.pos = dashLanding;
 
   const wasDefended = defender.defended;
   const defenseBlocked = wasDefended && !skill.ignoreDefense;
@@ -63,6 +110,11 @@ function applyAttack(attackerId, defenderId, defender, skillId) {
   defender.hp -= dmg;
   const stunApplied = skill.stunTurns > 0 && defender.hp > 0 && !defenseBlocked;
   if (stunApplied) defender.stunTurns = Math.max(defender.stunTurns, skill.stunTurns);
+  const bleedApplied = skill.bleedTurns > 0 && defender.hp > 0 && !defenseBlocked;
+  if (bleedApplied) {
+    defender.bleedTurns = Math.max(defender.bleedTurns, skill.bleedTurns);
+    defender.bleedDamage = Math.max(defender.bleedDamage, skill.bleedDamage);
+  }
   faceToward(attacker, defender.pos);
   faceToward(defender, attacker.pos);
   setMotion(attacker, 'attack');
@@ -72,7 +124,7 @@ function applyAttack(attackerId, defenderId, defender, skillId) {
   // 쿨다운 설정
   state.players[attackerId].cooldowns[skillId] = skill.cd;
 
-  log(`⚔️ ${playerFullLabel(attackerId)} 「${skill.name}」! ${playerFullLabel(defenderId)} HP -${dmg}${defenseBlocked ? ' (방어)' : ''}${wasDefended && skill.ignoreDefense ? ' (방어 무시)' : ''}${armorReduction ? ` (방어력 -${armorReduction})` : ''}${skill.stunTurns && defenseBlocked ? ' (방어로 기절 저항)' : ''}${stunApplied ? ` (기절 ${skill.stunTurns}턴)` : ''}`);
+  log(`⚔️ ${playerFullLabel(attackerId)} 「${skill.name}」! ${playerFullLabel(defenderId)} HP -${dmg}${dashLanding ? ' (뒤로 이동)' : ''}${defenseBlocked ? ' (방어)' : ''}${wasDefended && skill.ignoreDefense ? ' (방어 무시)' : ''}${armorReduction ? ` (방어력 -${armorReduction})` : ''}${skill.stunTurns && defenseBlocked ? ' (방어로 기절 저항)' : ''}${stunApplied ? ` (기절 ${skill.stunTurns}턴)` : ''}${skill.bleedTurns && defenseBlocked ? ' (방어로 출혈 저항)' : ''}${bleedApplied ? ` (출혈 ${skill.bleedDamage}×${skill.bleedTurns}턴)` : ''}`);
 
   render();
   const unitEl = boardEl.querySelector(`.unit[data-player="${defenderId}"]`);

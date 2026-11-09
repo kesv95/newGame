@@ -70,6 +70,7 @@ function botAct() {
   if (moves.length > 0) {
     const best = moves.slice().sort((a, b) => scoreMove(b) - scoreMove(a))[0];
     me.pos = { r: best.r, c: best.c };
+    me.lastDefended = false;
     faceToward(me, opp.pos);
     setMotion(me, 'walk');
     state.animating = true;
@@ -90,6 +91,7 @@ function botAct() {
     me.lastDefended = true;
   } else {
     log('🤖 봇: 대기');
+    me.lastDefended = false;
   }
   endTurn();
 }

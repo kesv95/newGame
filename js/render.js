@@ -183,8 +183,11 @@ function updateButtons(isBotTurn) {
     panel.classList.toggle('turn-inactive', !canControl);
     panel.querySelectorAll('.action-button').forEach(button => {
       const firstTurnAttackLocked = button.dataset.action === 'attack' && state.turn === 1;
-      button.disabled = !canControl || firstTurnAttackLocked;
-      button.title = firstTurnAttackLocked ? '첫 턴에는 공격할 수 없습니다' : '';
+      const defenseLocked = button.dataset.action === 'defend' && state.players[pid].lastDefended;
+      button.disabled = !canControl || firstTurnAttackLocked || defenseLocked;
+      button.title = firstTurnAttackLocked
+        ? '첫 턴에는 공격할 수 없습니다'
+        : (defenseLocked ? '방어한 다음 차례에는 이동 또는 공격을 해야 합니다' : '');
       button.classList.toggle('active', isCurrent &&
         ((button.dataset.action === 'move' && state.phase === 'move') ||
          (button.dataset.action === 'attack' && state.phase === 'attack')));
@@ -243,6 +246,8 @@ function renderSkillPanel(isBotTurn) {
         <span class="skill-desc">${skill.desc}</span>
         ${skill.ignoreDefense ? '<span class="skill-cd">방어 무시</span>' : ''}
         ${skill.stunTurns ? `<span class="skill-cd">기절 ${skill.stunTurns}턴</span>` : ''}
+        ${skill.dashBehind ? '<span class="skill-cd">적 뒤로 이동</span>' : ''}
+        ${skill.bleedTurns ? `<span class="skill-cd">출혈 ${skill.bleedDamage}×${skill.bleedTurns}턴</span>` : ''}
         ${cdLeft > 0 ? `<span class="skill-cd">쿨다운 ${cdLeft}턴</span>` : ''}
         ${player.mp < skill.mpCost ? `<span class="skill-cd">MP 부족</span>` : ''}
       </button>

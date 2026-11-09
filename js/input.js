@@ -21,6 +21,7 @@ function onCellClick(r, c) {
 
     // 위치 이동
     me.pos = { r, c };
+    me.lastDefended = false;
     faceToward(me, opp.pos);
     setMotion(me, 'walk');
     state.animating = true;
