@@ -143,6 +143,13 @@ function render() {
     unit.style.left = `${geometry.centerX}%`;
     unit.style.top = `${geometry.centerY}%`;
     unit.style.zIndex = String(10 + p.pos.r);
+    if (!state.over && pid === state.current) {
+      const marker = document.createElement('span');
+      marker.className = 'turn-marker';
+      marker.textContent = '▼';
+      marker.setAttribute('aria-hidden', 'true');
+      unit.appendChild(marker);
+    }
     boardEl.appendChild(unit);
   });
 
@@ -204,27 +211,6 @@ function renderSkillPanel(isBotTurn) {
     document.getElementById('panel').after(panel);
   }
 
-  if (!panel.dataset.rangePreviewBound) {
-    panel.dataset.rangePreviewBound = 'true';
-    panel.addEventListener('mouseover', event => {
-      const button = event.target.closest('.skill-btn');
-      if (!button || state.hoverSkillId === button.dataset.skill) return;
-      state.hoverSkillId = button.dataset.skill;
-      refreshAttackRangePreview();
-    });
-    panel.addEventListener('mouseout', event => {
-      if (!event.target.closest('.skill-btn')) return;
-      if (event.relatedTarget?.closest?.('.skill-btn')) return;
-      state.hoverSkillId = null;
-      refreshAttackRangePreview();
-    });
-    panel.addEventListener('mouseleave', () => {
-      if (!state.hoverSkillId) return;
-      state.hoverSkillId = null;
-      refreshAttackRangePreview();
-    });
-  }
-
   // 공격 단계가 아니거나 봇 턴이면 숨김
   if (state.over || isBotTurn || state.phase !== 'attack') {
     panel.style.display = 'none';
@@ -239,8 +225,8 @@ function renderSkillPanel(isBotTurn) {
     const disabled = cdLeft > 0 || player.mp < skill.mpCost;
     const active = state.selectedSkillId === skill.id;
     return `
-      <button class="skill-btn ${active ? 'active' : ''}" data-skill="${skill.id}"
-        ${disabled ? 'disabled' : ''}>
+      <button class="skill-btn ${active ? 'active' : ''} ${disabled ? 'unavailable' : ''}"
+        data-skill="${skill.id}" data-unavailable="${disabled}" aria-disabled="${disabled}">
         <span class="skill-name">${skill.name}</span>
         <span class="skill-meta">데미지 ${skill.damage} · MP ${skill.mpCost} · CD ${skill.cd}</span>
         <span class="skill-desc">${skill.desc}</span>
@@ -256,8 +242,21 @@ function renderSkillPanel(isBotTurn) {
 
   // 스킬 버튼 클릭 이벤트
   panel.querySelectorAll('.skill-btn').forEach(btn => {
+    const previewSkill = () => {
+      state.hoverSkillId = btn.dataset.skill;
+      refreshAttackRangePreview();
+    };
+    const clearPreview = event => {
+      const nextButton = event.relatedTarget?.closest?.('.skill-btn');
+      state.hoverSkillId = nextButton?.dataset.skill || null;
+      refreshAttackRangePreview();
+    };
+    btn.addEventListener('pointerenter', previewSkill);
+    btn.addEventListener('pointerleave', clearPreview);
+    btn.addEventListener('focus', previewSkill);
+    btn.addEventListener('blur', clearPreview);
     btn.addEventListener('click', () => {
-      if (btn.disabled) return;
+      if (btn.dataset.unavailable === 'true') return;
       state.selectedSkillId = btn.dataset.skill;
       state.hoverSkillId = null;
       render();
