@@ -23,6 +23,7 @@ const PATTERNS = {
   },
   adjacent4: (from, to) =>
     Math.abs(from.r - to.r) + Math.abs(from.c - to.c) === 1,
+  self: (from, to) => from.r === to.r && from.c === to.c,
   adjacent8: (from, to) => {
     const dr = Math.abs(from.r - to.r), dc = Math.abs(from.c - to.c);
     return dr <= 1 && dc <= 1 && (dr + dc) > 0;
@@ -86,15 +87,25 @@ function tilesByMove(from, dirs) {
 /* ============================================================
    스킬 팩토리: canAttack/attackTiles 자동 생성
 ============================================================ */
-function makeSkill({ id, name, desc, damage, cd, pattern, range, mpCost, ignoreDefense = false, stunTurns = 0, dashBehind = false, bleedTurns = 0, bleedDamage = 0 }) {
+function makeSkill({ id, name, desc, damage, cd, pattern, range, mpCost, ignoreDefense = false, stunTurns = 0, dashBehind = false, bleedTurns = 0, bleedDamage = 0, critChance = 0, critMultiplier = 1.5, heal = 0, attackBuff = 0, attackBuffHits = 0, weakenHits = 0, weakenAmount = 0, target = 'opponent' }) {
   return {
     id, name, desc, damage, cd,
-    mpCost: mpCost ?? Math.max(1, damage + (cd >= 3 ? 2 : cd >= 2 ? 1 : 0)),
+    // MP 회복은 턴당 1이므로, 일반 기술은 피해량의 절반 정도를 기본 비용으로 둔다.
+    // 긴 쿨다운과 강한 부가 효과는 각 기술에서 비용을 별도로 지정한다.
+    mpCost: mpCost ?? Math.max(1, Math.ceil(damage / 2) + (cd >= 3 ? 2 : cd >= 2 ? 1 : 0)),
     ignoreDefense,
     stunTurns,
     dashBehind,
     bleedTurns,
     bleedDamage,
+    critChance,
+    critMultiplier,
+    heal,
+    attackBuff,
+    attackBuffHits,
+    weakenHits,
+    weakenAmount,
+    target,
     pattern,
     range,
     canAttack(from, to) {
@@ -119,9 +130,9 @@ const CHARACTERS = {
     moveDirs: MOVE_DIRS.all,
     skills: [
       makeSkill({ id: 'slash',   name: '베기',     desc: '직선·대각선 2칸, 데미지 3',   damage: 3, cd: 0, pattern: PATTERNS.lineDiagonal, range: 2 }),
-      makeSkill({ id: 'thrust',  name: '찌르기',   desc: '직선·대각선 3칸, 방어 무시 데미지 4', damage: 4, cd: 1, mpCost: 6, ignoreDefense: true, pattern: PATTERNS.lineDiagonal, range: 3 }),
+      makeSkill({ id: 'thrust',  name: '찌르기',   desc: '직선·대각선 3칸, 방어 무시 데미지 4', damage: 4, cd: 1, mpCost: 3, ignoreDefense: true, pattern: PATTERNS.lineDiagonal, range: 3 }),
       makeSkill({ id: 'sweep',   name: '휩쓸기',   desc: '인접 4칸, 데미지 3',           damage: 3, cd: 1, pattern: PATTERNS.adjacent4, range: 1 }),
-      makeSkill({ id: 'execute', name: '처형',     desc: '인접 1칸, 데미지 7 (궁극기)',  damage: 7, cd: 3, pattern: PATTERNS.adjacent4, range: 1 })
+      makeSkill({ id: 'execute', name: '처형',     desc: '인접 1칸, 데미지 7 · 치명타 10% (궁극기)',  damage: 7, cd: 3, critChance: 0.1, pattern: PATTERNS.adjacent4, range: 1 })
     ]
   },
 
@@ -130,11 +141,12 @@ const CHARACTERS = {
     id: 'seer', name: '시어', symbol: '👁', color: '#9c27b0',
     role: '원거리 견제',
     hp: 8, maxMp: 16,
+    basicDamage: 2, basicRange: 2, basicPattern: PATTERNS.star,
     moveDirs: MOVE_DIRS.all,
     skills: [
       makeSkill({ id: 'glance',  name: '응시',     desc: '대각선 2칸, 데미지 2',           damage: 2, cd: 0, pattern: PATTERNS.diagonal, range: 2 }),
-      makeSkill({ id: 'pierce',  name: '관통',     desc: '대각선 3칸, 데미지 2 · 2턴 기절', damage: 2, cd: 3, mpCost: 5, stunTurns: 2, pattern: PATTERNS.diagonal, range: 3 }),
-      makeSkill({ id: 'cross',   name: '십자 시선', desc: '십자 2칸, 데미지 2',            damage: 2, cd: 1, pattern: PATTERNS.cross,    range: 2 }),
+      makeSkill({ id: 'pierce',  name: '관통',     desc: '대각선 3칸, 데미지 2 · 2턴 기절', damage: 2, cd: 3, mpCost: 3, stunTurns: 2, pattern: PATTERNS.diagonal, range: 3 }),
+      makeSkill({ id: 'cross',   name: '정신 안정', desc: '자신 HP 2 회복',                damage: 0, cd: 3, mpCost: 3, heal: 2, target: 'self', pattern: PATTERNS.self, range: 0 }),
       makeSkill({ id: 'omni',    name: '전지',     desc: '전방위 2칸, 데미지 4 (궁극기)', damage: 4, cd: 3, pattern: PATTERNS.star,     range: 2 })
     ]
   },
@@ -143,15 +155,15 @@ const CHARACTERS = {
   titan: {
     id: 'titan', name: '타이탄', symbol: '🛡', color: '#f44336',
     role: '근접 탱커',
-    hp: 20, maxMp: 10,
+    hp: 16, maxMp: 10,
     basicDamage: 1,
     armor: 1,
     moveDirs: MOVE_DIRS.all,
     skills: [
-      makeSkill({ id: 'smash',   name: '강타',     desc: '인접 4칸, 데미지 2',           damage: 2, cd: 0, pattern: PATTERNS.adjacent4, range: 1 }),
-      makeSkill({ id: 'quake',   name: '지진',     desc: '인접 8칸, 데미지 1 · 1턴 기절', damage: 1, cd: 2, mpCost: 3, stunTurns: 1, pattern: PATTERNS.adjacent8, range: 1 }),
-      makeSkill({ id: 'charge',  name: '돌진',     desc: '직선·대각선 3칸, 방어 무시 데미지 3', damage: 3, cd: 2, mpCost: 5, ignoreDefense: true, pattern: PATTERNS.lineDiagonal, range: 3 }),
-      makeSkill({ id: 'annihilate', name: '섬멸',  desc: '인접 4칸, 데미지 4 (궁극기)', damage: 4, cd: 4, mpCost: 7, pattern: PATTERNS.adjacent4, range: 1 })
+      makeSkill({ id: 'smash',   name: '강타',     desc: '인접 4칸, 데미지 1',           damage: 1, cd: 0, pattern: PATTERNS.adjacent4, range: 1 }),
+      makeSkill({ id: 'quake',   name: '지진',     desc: '인접 8칸, 데미지 1 · 1턴 기절', damage: 1, cd: 2, mpCost: 2, stunTurns: 1, pattern: PATTERNS.adjacent8, range: 1 }),
+      makeSkill({ id: 'charge',  name: '전투 태세', desc: '다음 2회 공격 피해 +1', damage: 0, cd: 3, mpCost: 3, attackBuff: 1, attackBuffHits: 2, target: 'self', pattern: PATTERNS.self, range: 0 }),
+      makeSkill({ id: 'annihilate', name: '섬멸',  desc: '인접 4칸, 방어 무시 데미지 7 (궁극기)', damage: 7, cd: 4, mpCost: 5, ignoreDefense: true, pattern: PATTERNS.adjacent4, range: 1 })
     ]
   },
 
@@ -164,8 +176,8 @@ const CHARACTERS = {
     moveDirs: MOVE_DIRS.all,
     skills: [
       makeSkill({ id: 'jab',     name: '찌르기',   desc: '나이트 1회, 데미지 3',         damage: 3, cd: 0, pattern: PATTERNS.knight,   range: 1 }),
-      makeSkill({ id: 'blink',   name: '그림자 추격', desc: '직선·대각선 4칸 돌진, 데미지 2 · 2턴 출혈', damage: 2, cd: 2, mpCost: 5, dashBehind: true, bleedTurns: 2, bleedDamage: 1, pattern: PATTERNS.lineDiagonal, range: 4 }),
-      makeSkill({ id: 'ambush',  name: '기습',     desc: '나이트, 데미지 5',             damage: 5, cd: 2, pattern: PATTERNS.knight, range: 1 }),
+      makeSkill({ id: 'blink',   name: '그림자 추격', desc: '직선·대각선 4칸 돌진, 데미지 2 · 2턴 출혈', damage: 2, cd: 2, mpCost: 2, dashBehind: true, bleedTurns: 2, bleedDamage: 1, pattern: PATTERNS.lineDiagonal, range: 4 }),
+      makeSkill({ id: 'ambush',  name: '기습',     desc: '나이트, 데미지 5 · 치명타 15%', damage: 5, cd: 2, critChance: 0.15, pattern: PATTERNS.knight, range: 1 }),
       makeSkill({ id: 'shadow',  name: '그림자 습격', desc: '전방위 1칸, 데미지 6 (궁극기)', damage: 6, cd: 3, pattern: PATTERNS.adjacent8, range: 1 })
     ]
   },
@@ -174,16 +186,16 @@ const CHARACTERS = {
   warden: {
     id: 'warden', name: '워든', symbol: '◈', color: '#607d8b',
     role: '방어형',
-    hp: 20, maxMp: 8,
+    hp: 15, maxMp: 8,
     basicDamage: 1,
     armor: 1,
     defendReduction: 0.25,
     moveDirs: MOVE_DIRS.all,
     skills: [
-      makeSkill({ id: 'shieldBash', name: '방패 치기', desc: '인접 4칸, 데미지 1 · 1턴 기절', damage: 1, cd: 2, mpCost: 3, stunTurns: 1, pattern: PATTERNS.adjacent4, range: 1 }),
+      makeSkill({ id: 'shieldBash', name: '방패 치기', desc: '인접 4칸, 데미지 1 · 1턴 기절', damage: 1, cd: 2, mpCost: 2, stunTurns: 1, pattern: PATTERNS.adjacent4, range: 1 }),
       makeSkill({ id: 'fortify',    name: '강화',      desc: '인접 4칸, 데미지 1',        damage: 1, cd: 1, pattern: PATTERNS.adjacent4, range: 1 }),
-      makeSkill({ id: 'counter',    name: '반격',      desc: '십자 2칸, 데미지 1',        damage: 1, cd: 1, pattern: PATTERNS.cross, range: 2 }),
-      makeSkill({ id: 'judgment',   name: '심판',      desc: '인접 8칸, 방어 무시 데미지 3 (궁극기)', damage: 3, cd: 4, mpCost: 7, ignoreDefense: true, pattern: PATTERNS.adjacent8, range: 1 })
+      makeSkill({ id: 'counter',    name: '약화의 인장', desc: '상대 다음 2회 공격 피해 -1', damage: 0, cd: 3, mpCost: 3, weakenHits: 2, weakenAmount: 1, target: 'opponent', pattern: PATTERNS.star, range: 3 }),
+      makeSkill({ id: 'judgment',   name: '심판',      desc: '인접 8칸, 방어 무시 데미지 6 (궁극기)', damage: 6, cd: 4, mpCost: 5, ignoreDefense: true, pattern: PATTERNS.adjacent8, range: 1 })
     ]
   },
 
@@ -195,7 +207,7 @@ const CHARACTERS = {
     armor: 1,
     moveDirs: MOVE_DIRS.all,
     skills: [
-      makeSkill({ id: 'claw',    name: '할퀴기',   desc: '인접 8칸, 방어 무시 데미지 3', damage: 3, cd: 0, mpCost: 5, ignoreDefense: true, pattern: PATTERNS.adjacent8, range: 1 }),
+      makeSkill({ id: 'claw',    name: '할퀴기',   desc: '인접 8칸, 방어 무시 데미지 3', damage: 3, cd: 0, mpCost: 2, ignoreDefense: true, pattern: PATTERNS.adjacent8, range: 1 }),
       makeSkill({ id: 'reap',    name: '수확',     desc: '대각선 3칸, 데미지 4',         damage: 4, cd: 1, pattern: PATTERNS.diagonal, range: 3 }),
       makeSkill({ id: 'whirl',   name: '회전 베기', desc: '전방위 2칸, 데미지 3',        damage: 3, cd: 2, pattern: PATTERNS.star,     range: 2 }),
       makeSkill({ id: 'carnage', name: '학살',     desc: '인접 8칸, 데미지 6 (궁극기)',  damage: 6, cd: 4, pattern: PATTERNS.adjacent8, range: 1 })
@@ -207,12 +219,13 @@ const CHARACTERS = {
     id: 'lance', name: '랜스', symbol: '➤', color: '#00bcd4',
     role: '중거리',
     hp: 10, maxMp: 14,
+    basicDamage: 2, basicRange: 2, basicPattern: PATTERNS.lineDiagonal,
     moveDirs: MOVE_DIRS.all,
     skills: [
       makeSkill({ id: 'poke',    name: '찌르기',   desc: '직선·대각선 2칸, 데미지 2',   damage: 2, cd: 0, pattern: PATTERNS.lineDiagonal, range: 2 }),
       makeSkill({ id: 'pierce',  name: '관통',     desc: '직선·대각선 3칸, 데미지 3',   damage: 3, cd: 1, pattern: PATTERNS.lineDiagonal, range: 3 }),
       makeSkill({ id: 'hook',    name: '갈고리',   desc: '대각선 2칸, 데미지 2',         damage: 2, cd: 1, pattern: PATTERNS.diagonal, range: 2 }),
-      makeSkill({ id: 'impale',  name: '꿰뚫기',   desc: '직선·대각선 4칸, 방어 무시 데미지 4 (궁극기)', damage: 4, cd: 3, mpCost: 7, ignoreDefense: true, pattern: PATTERNS.lineDiagonal, range: 4 })
+      makeSkill({ id: 'impale',  name: '꿰뚫기',   desc: '직선·대각선 4칸, 방어 무시 데미지 4 (궁극기)', damage: 4, cd: 3, mpCost: 5, ignoreDefense: true, pattern: PATTERNS.lineDiagonal, range: 4 })
     ]
   },
 
@@ -221,12 +234,13 @@ const CHARACTERS = {
     id: 'oracle', name: '오라클', symbol: '◉', color: '#e91e63',
     role: '특수',
     hp: 9, maxMp: 18,
+    basicDamage: 1, basicRange: 2, basicPattern: PATTERNS.star,
     moveDirs: MOVE_DIRS.all,
     skills: [
       makeSkill({ id: 'spark',   name: '불꽃',     desc: '전방위 1칸, 데미지 1',         damage: 1, cd: 0, pattern: PATTERNS.star,     range: 1 }),
       makeSkill({ id: 'beam',    name: '광선',     desc: '직선·대각선 3칸, 데미지 2',   damage: 2, cd: 1, pattern: PATTERNS.lineDiagonal, range: 3 }),
-      makeSkill({ id: 'nova',    name: '신성 폭발', desc: '전방위 2칸, 데미지 2',        damage: 2, cd: 2, pattern: PATTERNS.star,     range: 2 }),
-      makeSkill({ id: 'apocalypse', name: '계시',  desc: '전방위 3칸, 데미지 2 · 2턴 기절 (궁극기)', damage: 2, cd: 3, mpCost: 7, stunTurns: 2, pattern: PATTERNS.star, range: 3 })
+      makeSkill({ id: 'nova',    name: '회복의 파동', desc: '자신 HP 2 회복',              damage: 0, cd: 3, mpCost: 3, heal: 2, target: 'self', pattern: PATTERNS.self, range: 0 }),
+      makeSkill({ id: 'apocalypse', name: '계시',  desc: '전방위 3칸, 데미지 4 · 2턴 기절 (궁극기)', damage: 4, cd: 3, mpCost: 5, stunTurns: 2, pattern: PATTERNS.star, range: 3 })
     ]
   }
 };
@@ -235,8 +249,8 @@ const CHARACTERS = {
 Object.values(CHARACTERS).forEach(char => {
   const basicDamage = char.basicDamage ?? 2;
   char.skills.unshift(makeSkill({
-    id: 'basic', name: '기본 공격', desc: `인접 4칸, 데미지 ${basicDamage} · MP 소모 없음`,
-    damage: basicDamage, cd: 0, mpCost: 0, pattern: PATTERNS.adjacent4, range: 1
+    id: 'basic', name: '기본 공격', desc: `${char.basicRange ? `${char.basicRange}칸 사거리` : '인접 4칸'}, 데미지 ${basicDamage} · MP 소모 없음`,
+    damage: basicDamage, cd: 0, mpCost: 0, pattern: char.basicPattern ?? PATTERNS.adjacent4, range: char.basicRange ?? 1
   }));
 });
 

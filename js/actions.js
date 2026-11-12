@@ -86,6 +86,39 @@ function applyAttack(attackerId, defenderId, defender, skillId) {
     render();
     return;
   }
+
+  if (skill.heal || skill.attackBuff || skill.weakenHits) {
+    attacker.mp -= skill.mpCost;
+    attacker.lastDefended = false;
+    state.players[attackerId].cooldowns[skillId] = skill.cd;
+    let effectText = '';
+    if (skill.heal) {
+      const restored = Math.min(skill.heal, attacker.maxHp - attacker.hp);
+      attacker.hp += restored;
+      effectText = `HP ${restored} 회복`;
+    }
+    if (skill.attackBuff) {
+      attacker.attackBuff = Math.max(attacker.attackBuff, skill.attackBuff);
+      attacker.attackBuffHits = Math.max(attacker.attackBuffHits, skill.attackBuffHits);
+      effectText = `다음 ${attacker.attackBuffHits}회 공격 피해 +${attacker.attackBuff}`;
+    }
+    if (skill.weakenHits) {
+      defender.weakenedHits = Math.max(defender.weakenedHits, skill.weakenHits);
+      defender.weakenAmount = Math.max(defender.weakenAmount, skill.weakenAmount);
+      effectText = `다음 ${defender.weakenedHits}회 공격 피해 -${defender.weakenAmount}`;
+    }
+    setMotion(attacker, 'attack');
+    state.animating = true;
+    log(`✨ ${playerFullLabel(attackerId)} 「${skill.name}」! ${effectText}`);
+    render();
+    setTimeout(() => {
+      setMotion(attacker, 'idle');
+      state.animating = false;
+      endTurn();
+    }, 400);
+    return;
+  }
+
   const dashLanding = skill.dashBehind ? findBehindLandingTile(attackerId, attacker, defender) : null;
   if (skill.dashBehind && !dashLanding) {
     log('⚠️ 상대 뒤쪽에 이동할 수 있는 칸이 없습니다');
@@ -98,7 +131,10 @@ function applyAttack(attackerId, defenderId, defender, skillId) {
 
   const wasDefended = defender.defended;
   const defenseBlocked = wasDefended && !skill.ignoreDefense;
+  const attackWasBuffed = attacker.attackBuffHits > 0;
+  const attackWasWeakened = defender.weakenedHits > 0;
   let rawDamage = skill.damage;
+  if (defender.weakenedHits > 0) rawDamage = Math.max(1, rawDamage - defender.weakenAmount);
   if (defenseBlocked) {
     const reduction = defChar.defendReduction ?? CONFIG.DEFEND_REDUCTION;
     rawDamage = Math.max(1, Math.round(rawDamage * reduction));
@@ -106,7 +142,18 @@ function applyAttack(attackerId, defenderId, defender, skillId) {
 
   const armorReduction = skill.ignoreDefense ? 0 :
     Math.min(defChar.armor ?? 0, Math.max(0, rawDamage - 1));
-  const dmg = Math.max(1, rawDamage - armorReduction);
+  let dmg = Math.max(1, rawDamage - armorReduction);
+  if (attacker.attackBuffHits > 0) dmg += attacker.attackBuff;
+  const critical = skill.critChance > 0 && Math.random() < skill.critChance;
+  if (critical) dmg = Math.ceil(dmg * skill.critMultiplier);
+  if (attacker.attackBuffHits > 0) {
+    attacker.attackBuffHits--;
+    if (attacker.attackBuffHits === 0) attacker.attackBuff = 0;
+  }
+  if (defender.weakenedHits > 0) {
+    defender.weakenedHits--;
+    if (defender.weakenedHits === 0) defender.weakenAmount = 0;
+  }
   defender.hp -= dmg;
   const stunApplied = skill.stunTurns > 0 && defender.hp > 0 && !defenseBlocked;
   if (stunApplied) defender.stunTurns = Math.max(defender.stunTurns, skill.stunTurns);
@@ -124,7 +171,7 @@ function applyAttack(attackerId, defenderId, defender, skillId) {
   // 쿨다운 설정
   state.players[attackerId].cooldowns[skillId] = skill.cd;
 
-  log(`⚔️ ${playerFullLabel(attackerId)} 「${skill.name}」! ${playerFullLabel(defenderId)} HP -${dmg}${dashLanding ? ' (뒤로 이동)' : ''}${defenseBlocked ? ' (방어)' : ''}${wasDefended && skill.ignoreDefense ? ' (방어 무시)' : ''}${armorReduction ? ` (방어력 -${armorReduction})` : ''}${skill.stunTurns && defenseBlocked ? ' (방어로 기절 저항)' : ''}${stunApplied ? ` (기절 ${skill.stunTurns}턴)` : ''}${skill.bleedTurns && defenseBlocked ? ' (방어로 출혈 저항)' : ''}${bleedApplied ? ` (출혈 ${skill.bleedDamage}×${skill.bleedTurns}턴)` : ''}`);
+  log(`⚔️ ${playerFullLabel(attackerId)} 「${skill.name}」! ${playerFullLabel(defenderId)} HP -${dmg}${critical ? ' (치명타!)' : ''}${attackWasBuffed ? ' (공격 강화)' : ''}${attackWasWeakened ? ' (공격 약화)' : ''}${dashLanding ? ' (뒤로 이동)' : ''}${defenseBlocked ? ' (방어)' : ''}${wasDefended && skill.ignoreDefense ? ' (방어 무시)' : ''}${armorReduction ? ` (방어력 -${armorReduction})` : ''}${skill.stunTurns && defenseBlocked ? ' (방어로 기절 저항)' : ''}${stunApplied ? ` (기절 ${skill.stunTurns}턴)` : ''}${skill.bleedTurns && defenseBlocked ? ' (방어로 출혈 저항)' : ''}${bleedApplied ? ` (출혈 ${skill.bleedDamage}×${skill.bleedTurns}턴)` : ''}`);
 
   render();
   const unitEl = boardEl.querySelector(`.unit[data-player="${defenderId}"]`);

@@ -104,7 +104,7 @@ function render() {
   // 상대 위협 범위 (모든 스킬 범위 합집합, 쿨다운 무시 — 위협은 항상 표시)
   if (!state.over) {
     const threatSet = new Set();
-    getChar(oppId).skills.forEach(skill => {
+    getChar(oppId).skills.filter(skill => skill.target !== 'self').forEach(skill => {
       skill.attackTiles(opp.pos).forEach(({ r, c }) => threatSet.add(`${r},${c}`));
     });
     threatSet.forEach(key => {
@@ -224,16 +224,20 @@ function renderSkillPanel(isBotTurn) {
     const cdLeft = player.cooldowns[skill.id];
     const disabled = cdLeft > 0 || player.mp < skill.mpCost;
     const active = state.selectedSkillId === skill.id;
+    const effectText = skill.heal ? `회복 ${skill.heal}` :
+      (skill.attackBuff ? `다음 ${skill.attackBuffHits}회 공격 +${skill.attackBuff}` :
+        (skill.weakenHits ? `상대 다음 ${skill.weakenHits}회 공격 -${skill.weakenAmount}` : `데미지 ${skill.damage}`));
     return `
       <button class="skill-btn ${active ? 'active' : ''} ${disabled ? 'unavailable' : ''}"
         data-skill="${skill.id}" data-unavailable="${disabled}" aria-disabled="${disabled}">
         <span class="skill-name">${skill.name}</span>
-        <span class="skill-meta">데미지 ${skill.damage} · MP ${skill.mpCost} · CD ${skill.cd}</span>
+        <span class="skill-meta">${effectText} · MP ${skill.mpCost} · CD ${skill.cd}</span>
         <span class="skill-desc">${skill.desc}</span>
         ${skill.ignoreDefense ? '<span class="skill-cd">방어 무시</span>' : ''}
         ${skill.stunTurns ? `<span class="skill-cd">기절 ${skill.stunTurns}턴</span>` : ''}
         ${skill.dashBehind ? '<span class="skill-cd">적 뒤로 이동</span>' : ''}
         ${skill.bleedTurns ? `<span class="skill-cd">출혈 ${skill.bleedDamage}×${skill.bleedTurns}턴</span>` : ''}
+        ${skill.critChance ? `<span class="skill-cd">치명타 ${Math.round(skill.critChance * 100)}% · 피해 ${Math.round(skill.critMultiplier * 100)}%</span>` : ''}
         ${cdLeft > 0 ? `<span class="skill-cd">쿨다운 ${cdLeft}턴</span>` : ''}
         ${player.mp < skill.mpCost ? `<span class="skill-cd">MP 부족</span>` : ''}
       </button>

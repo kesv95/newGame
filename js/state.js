@@ -32,6 +32,10 @@ function makePlayerState(charId, pos) {
     stunTurns: 0,
     bleedTurns: 0,
     bleedDamage: 0,
+    attackBuff: 0,
+    attackBuffHits: 0,
+    weakenedHits: 0,
+    weakenAmount: 0,
     motion: 'idle',
     motionStarted: Date.now(),
     // 시작 위치에서 P1은 오른쪽, P2/봇은 왼쪽을 바라본다.

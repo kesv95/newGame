@@ -19,11 +19,24 @@ function botAct() {
   // 1) 사용 가능한 스킬 중 상대를 맞출 수 있는 것 찾기 (첫 턴 제외)
   if (state.turn !== 1) {
     const usableSkills = char.skills.filter(s => me.cooldowns[s.id] === 0 && me.mp >= s.mpCost);
-    const hittable = usableSkills.filter(s => s.canAttack(me.pos, opp.pos));
+    const hittable = usableSkills.filter(s => {
+      if (s.target === 'self') {
+        if (!s.canAttack(me.pos, me.pos)) return false;
+        if (s.heal && me.hp >= me.maxHp) return false;
+        if (s.attackBuff && me.attackBuffHits > 0) return false;
+        return true;
+      }
+      if (!s.canAttack(me.pos, opp.pos)) return false;
+      if (s.weakenHits && opp.weakenedHits > 0) return false;
+      return true;
+    });
 
     if (hittable.length > 0) {
       // 효과가 있는 기술을 우선 고려하고, 동률이면 쿨다운이 긴 기술을 사용한다.
       const skillValue = skill => skill.damage +
+        (skill.heal ? Math.min(skill.heal, me.maxHp - me.hp) + 2 : 0) +
+        (skill.attackBuff ? skill.attackBuff * skill.attackBuffHits + 2 : 0) +
+        (skill.weakenHits ? skill.weakenAmount * skill.weakenHits + 2 : 0) +
         (skill.stunTurns ? 3 : 0) + (skill.ignoreDefense ? 2 : 0);
       hittable.sort((a, b) => {
         if (skillValue(b) !== skillValue(a)) return skillValue(b) - skillValue(a);
@@ -31,7 +44,8 @@ function botAct() {
       });
       const chosen = hittable[0];
       log(`🤖 봇: 「${chosen.name}」 사용`);
-      applyAttack(botId, oppId, opp, chosen.id);
+      const targetId = chosen.target === 'self' ? botId : oppId;
+      applyAttack(botId, targetId, state.players[targetId], chosen.id);
       return;
     }
   }

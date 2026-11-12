@@ -51,6 +51,8 @@ function onCellClick(r, c) {
     const char = getChar(state.current);
     const skill = char.skills.find(s => s.id === state.selectedSkillId);
 
+    const targetId = skill.target === 'self' ? state.current : oppId;
+    const targetPlayer = state.players[targetId];
     if (!skill.canAttack(me.pos, { r, c })) {
       log('⚠️ 스킬 범위 밖');
       return;
@@ -59,8 +61,13 @@ function onCellClick(r, c) {
       log(`⚠️ MP가 부족하거나 쿨다운 중인 스킬입니다 (필요 MP ${skill.mpCost})`);
       return;
     }
-    if (!(r === opp.pos.r && c === opp.pos.c)) {
-      log('⚠️ 상대가 없는 칸');
+    if (!(r === targetPlayer.pos.r && c === targetPlayer.pos.c)) {
+      log(skill.target === 'self' ? '⚠️ 자신의 칸을 선택하세요' : '⚠️ 상대가 없는 칸');
+      return;
+    }
+
+    if (skill.target === 'self') {
+      applyAttack(state.current, state.current, me, state.selectedSkillId);
       return;
     }
 
